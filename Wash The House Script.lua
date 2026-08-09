@@ -1,319 +1,239 @@
---[[
-    ===================================================
-    ROBLOX SCRIPT: WASH THE HOUSE (V2 ULTRA FIX)
-    Features: Auto Tool Equip, Smart Remote Detection, Instant Clean
-    ===================================================
---]]
+-- =======================================================
+-- ALL-IN-ONE ROBLOX STUDIO DEV & DEBUG PANEL (SINGLE SCRIPT)
+-- =======================================================
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
-local Window = Rayfield:CreateWindow({
-   Name = "Wash The House | KaitoFyp Edition 🧼",
-   Icon = 0,
-   LoadingTitle = "Loading Wash The House V2...",
-   LoadingSubtitle = "Auto-Detecting Remotes & Dirt...",
-   ConfigurationSaving = { Enabled = false },
-   Discord = { Enabled = false },
-   KeySystem = false
-})
-
-----------------------------------------------------
--- SERVICES & VARIABLES
-----------------------------------------------------
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-LocalPlayer.CharacterAdded:Connect(function(char)
-    Character = char
+-- 1. Create Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WashHouseControlPanel"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- 2. Main Resizable Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 340, 0, 360)
+mainFrame.Position = UDim2.new(0.5, -170, 0.5, -180)
+mainFrame.BackgroundColor3 = Color3.fromRGB(24, 28, 36)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
+
+-- 3. Draggable Header / TopBar
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 42)
+topBar.BackgroundColor3 = Color3.fromRGB(36, 42, 56)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Text = "🧹 WASH THE HOUSE - All-in-One Panel"
+title.Size = UDim2.new(1, -15, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 16
+title.BackgroundTransparency = 1
+title.Parent = topBar
+
+-- Draggable Logic
+local dragging, dragInput, dragStart, startPos
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
 end)
 
-local Flags = {
-    AutoWash = false,
-    InstantClean = false,
-    InfiniteWater = false,
-    AutoCollectCash = false,
-    DirtESP = false,
-    SpeedBoost = 40,
-    JumpBoost = 80,
-    EnableSpeed = false,
-    EnableJump = false,
-    Noclip = false,
-    AntiAFK = true
-}
-
-----------------------------------------------------
--- SMART DIRT & REMOTE DETECTION LOGIC
-----------------------------------------------------
-local function GetWashRemotes()
-    local remotes = {}
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-            local n = string.lower(obj.Name)
-            if n:find("wash") or n:find("clean") or n:find("dirt") or n:find("spray") or n:find("water") or n:find("hit") or n:find("tool") or n:find("use") then
-                table.insert(remotes, obj)
-            end
-        end
-    end
-    local tool = Character:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-    if tool then
-        for _, obj in pairs(tool:GetDescendants()) do
-            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                table.insert(remotes, obj)
-            end
-        end
-    end
-    return remotes
-end
-
-local function GetAllDirts()
-    local dirts = {}
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
-            local name = string.lower(obj.Name)
-            local pName = obj.Parent and string.lower(obj.Parent.Name) or ""
-            
-            local isDirt = name:find("dirt") or name:find("stain") or name:find("clean") or name:find("mud") or name:find("spot")
-            local inDirtFolder = pName:find("dirt") or pName:find("stain") or pName:find("cleanable") or pName:find("house")
-            local hasDirtAttr = obj:GetAttribute("Dirt") or obj:GetAttribute("Cleanliness") or obj:GetAttribute("HP") or obj:GetAttribute("Health")
-            
-            local hasDirtDecal = false
-            for _, child in pairs(obj:GetChildren()) do
-                if child:IsA("Decal") or child:IsA("Texture") then
-                    local dName = string.lower(child.Name)
-                    if dName:find("dirt") or dName:find("stain") then
-                        hasDirtDecal = true
-                    end
-                end
-            end
-            
-            if isDirt or (inDirtFolder and (hasDirtAttr or hasDirtDecal)) or hasDirtAttr or hasDirtDecal then
-                table.insert(dirts, obj)
-            end
-        end
-    end
-    return dirts
-end
-
-local function CleanTargetDirt(dirtObj)
-    if not dirtObj or not dirtObj.Parent then return end
-    pcall(function()
-        -- 1. Fire Wash Remotes
-        for _, r in pairs(GetWashRemotes()) do
-            if r:IsA("RemoteEvent") then
-                r:FireServer(dirtObj, dirtObj.Position, Vector3.new(0, 1, 0))
-                r:FireServer(dirtObj)
-                r:FireServer()
-            elseif r:IsA("RemoteFunction") then
-                r:InvokeServer(dirtObj)
-            end
-        end
-
-        -- 2. Equip & Activate Washer Tool
-        local tool = Character:FindFirstChildOfClass("Tool")
-        if not tool then
-            local bpTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-            if bpTool then
-                bpTool.Parent = Character
-                tool = bpTool
-            end
-        end
-        if tool then
-            tool:Activate()
-            if tool:FindFirstChild("Handle") and dirtObj:IsA("BasePart") then
-                firetouchinterest(tool.Handle, dirtObj, 0)
-                firetouchinterest(tool.Handle, dirtObj, 1)
-            end
-        end
-
-        -- 3. Clear Attributes & Textures
-        if dirtObj:GetAttribute("Cleanliness") then dirtObj:SetAttribute("Cleanliness", 100) end
-        if dirtObj:GetAttribute("Dirt") then dirtObj:SetAttribute("Dirt", 0) end
-        if dirtObj:GetAttribute("HP") then dirtObj:SetAttribute("HP", 0) end
-        
-        for _, child in pairs(dirtObj:GetChildren()) do
-            if child:IsA("Decal") or child:IsA("Texture") then
-                child.Transparency = 1
-                child:Destroy()
-            end
-        end
-        
-        if string.find(string.lower(dirtObj.Name), "dirt") or string.find(string.lower(dirtObj.Name), "stain") then
-            dirtObj.Transparency = 1
-            dirtObj.CanCollide = false
-        end
-    end)
-end
-
-----------------------------------------------------
--- LOOPS
-----------------------------------------------------
-RunService.Stepped:Connect(function()
-    if Flags.Noclip and Character then
-        for _, part in pairs(Character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-    end
-    
-    if Flags.EnableSpeed and Character and Character:FindFirstChild("Humanoid") then
-        Character.Humanoid.WalkSpeed = Flags.SpeedBoost
-    end
-    
-    if Flags.EnableJump and Character and Character:FindFirstChild("Humanoid") then
-        Character.Humanoid.UseJumpPower = true
-        Character.Humanoid.JumpPower = Flags.JumpBoost
-    end
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
 end)
 
-LocalPlayer.Idled:Connect(function()
-    if Flags.AntiAFK then
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
 end)
 
-----------------------------------------------------
--- UI TABS
-----------------------------------------------------
-local CleaningTab = Window:CreateTab("🧼 Wash & Clean", 4483362458)
+-- 4. Resizable Handle (Bottom Right Corner)
+local resizeGrip = Instance.new("TextLabel")
+resizeGrip.Name = "ResizeGrip"
+resizeGrip.Text = "◢"
+resizeGrip.Size = UDim2.new(0, 22, 0, 22)
+resizeGrip.Position = UDim2.new(1, -22, 1, -22)
+resizeGrip.TextColor3 = Color3.fromRGB(160, 160, 160)
+resizeGrip.BackgroundTransparency = 1
+resizeGrip.TextSize = 14
+resizeGrip.ZIndex = 10
+resizeGrip.Parent = mainFrame
 
-CleaningTab:CreateToggle({
-   Name = "Auto Instant Clean Wash",
-   CurrentValue = false,
-   Callback = function(Value)
-      Flags.AutoWash = Value
-      task.spawn(function()
-          while Flags.AutoWash do
-              for _, dirt in pairs(GetAllDirts()) do
-                  if not Flags.AutoWash then break end
-                  CleanTargetDirt(dirt)
-                  task.wait(0.02)
-              end
-              task.wait(0.3)
-          end
-      end)
-   end,
-})
+local resizing, resizeStart, startSize
+resizeGrip.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		resizing = true
+		resizeStart = input.Position
+		startSize = mainFrame.Size
+	end
+end)
 
-CleaningTab:CreateButton({
-   Name = "Instant Clean Dirt Wash ⚡",
-   Callback = function()
-       local dirts = GetAllDirts()
-       Rayfield:Notify({ Title = "Cleaning...", Content = "Cleaning " .. tostring(#dirts) .. " dirt spots!", Duration = 3 })
-       for _, dirt in pairs(dirts) do CleanTargetDirt(dirt) end
-   end,
-})
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		resizing = false
+	end
+end)
 
-CleaningTab:CreateToggle({
-   Name = "Infinite Water / No Refill",
-   CurrentValue = false,
-   Callback = function(Value)
-      Flags.InfiniteWater = Value
-      task.spawn(function()
-          while Flags.InfiniteWater do
-              pcall(function()
-                  local tool = Character:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-                  if tool then
-                      for _, v in pairs(tool:GetDescendants()) do
-                          if v:IsA("NumberValue") or v:IsA("IntValue") then
-                              local vn = string.lower(v.Name)
-                              if vn:find("water") or vn:find("fuel") or vn:find("ammo") or vn:find("capacity") then
-                                  v.Value = 999999
-                              end
-                          end
-                      end
-                  end
-              end)
-              task.wait(0.5)
-          end
-      end)
-   end,
-})
+UserInputService.InputChanged:Connect(function(input)
+	if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - resizeStart
+		local newX = math.max(260, startSize.X.Offset + delta.X)
+		local newY = math.max(200, startSize.Y.Offset + delta.Y)
+		mainFrame.Size = UDim2.new(0, newX, 0, newY)
+	end
+end)
 
-local AutoTab = Window:CreateTab("✨ Aura Mods", 4483362458)
+-- 5. Scrolling Frame for Features List
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "FeatureScroll"
+scroll.Size = UDim2.new(1, -20, 1, -55)
+scroll.Position = UDim2.new(0, 10, 0, 48)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 6
+scroll.CanvasSize = UDim2.new(0, 0, 0, 360) -- Dynamic height for scrolling
+scroll.Parent = mainFrame
 
-AutoTab:CreateToggle({
-   Name = "Auto Collect Cash & Coins",
-   CurrentValue = false,
-   Callback = function(Value)
-      Flags.AutoCollectCash = Value
-      task.spawn(function()
-          while Flags.AutoCollectCash do
-              pcall(function()
-                  for _, item in pairs(Workspace:GetDescendants()) do
-                      if item:IsA("TouchTransmitter") then
-                          local parent = item.Parent
-                          if parent and string.find(string.lower(parent.Name), "coin") or string.find(string.lower(parent.Name), "cash") then
-                              if Character and Character:FindFirstChild("HumanoidRootPart") then
-                                  firetouchinterest(Character.HumanoidRootPart, parent, 0)
-                                  firetouchinterest(Character.HumanoidRootPart, parent, 1)
-                              end
-                          end
-                      end
-                  end
-              end)
-              task.wait(0.3)
-          end
-      end)
-   end,
-})
+local uiList = Instance.new("UIListLayout")
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 8)
+uiList.Parent = scroll
 
-local PlayerTab = Window:CreateTab("🏃 Washer & Player", 4483362458)
+-- Helper Function to Create Styled Buttons
+local function createButton(text, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -8, 0, 40)
+	btn.BackgroundColor3 = Color3.fromRGB(44, 52, 68)
+	btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+	btn.Font = Enum.Font.SourceSansSemibold
+	btn.TextSize = 15
+	btn.Text = text
+	btn.Parent = scroll
 
-PlayerTab:CreateToggle({
-   Name = "Enable WalkSpeed Boost",
-   CurrentValue = false,
-   Callback = function(Value) Flags.EnableSpeed = Value end,
-})
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = btn
 
-PlayerTab:CreateSlider({
-   Name = "WalkSpeed",
-   Range = {16, 250},
-   Increment = 1,
-   Suffix = " Speed",
-   CurrentValue = 50,
-   Callback = function(Value) Flags.SpeedBoost = Value end,
-})
+	btn.MouseButton1Click:Connect(function()
+		callback(btn)
+	end)
 
-PlayerTab:CreateToggle({
-   Name = "Noclip (Walk Through Walls)",
-   CurrentValue = false,
-   Callback = function(Value) Flags.Noclip = Value end,
-})
+	return btn
+end
 
-local VisualsTab = Window:CreateTab("👁️ ESP & Visuals", 4483362458)
+-- =======================================================
+-- FEATURES LOGIC
+-- =======================================================
 
-VisualsTab:CreateToggle({
-   Name = "Dirt ESP (Highlight Spots)",
-   CurrentValue = false,
-   Callback = function(Value)
-      Flags.DirtESP = Value
-      if Value then
-          task.spawn(function()
-              while Flags.DirtESP do
-                  for _, dirt in pairs(GetAllDirts()) do
-                      if not dirt:FindFirstChild("ESP_Highlight") then
-                          local hl = Instance.new("Highlight")
-                          hl.Name = "ESP_Highlight"
-                          hl.FillColor = Color3.fromRGB(255, 30, 30)
-                          hl.Parent = dirt
-                      end
-                  end
-                  task.wait(2)
-              end
-          end)
-      end
-   end,
-})
+-- 1. Auto Clean Toggle
+local autoClean = false
+createButton("⚡ Toggle Auto Clean: OFF", function(btn)
+	autoClean = not autoClean
+	if autoClean then
+		btn.Text = "⚡ Toggle Auto Clean: ON"
+		btn.BackgroundColor3 = Color3.fromRGB(40, 140, 80)
+	else
+		btn.Text = "⚡ Toggle Auto Clean: OFF"
+		btn.BackgroundColor3 = Color3.fromRGB(44, 52, 68)
+	end
+end)
 
-local MiscTab = Window:CreateTab("⚙️ Misc", 4483362458)
+RunService.RenderStepped:Connect(function()
+	if autoClean then
+		local houseDirt = workspace:FindFirstChild("HouseDirt")
+		local events = ReplicatedStorage:FindFirstChild("WashEvents")
+		local cleanEvent = events and events:FindFirstChild("CleanDirt")
 
-MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = true, Callback = function(Value) Flags.AntiAFK = Value end })
-MiscTab:CreateButton({ Name = "Rejoin Server 🔄", Callback = function() game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end })
+		if houseDirt and cleanEvent then
+			for _, part in ipairs(houseDirt:GetDescendants()) do
+				if part:IsA("BasePart") and part:FindFirstChild("DirtHealth") and part.DirtHealth.Value > 0 then
+					cleanEvent:FireServer(part)
+					break
+				end
+			end
+		end
+	end
+end)
 
-Rayfield:Notify({ Title = "V2 Script Loaded!", Content = "Auto-Clean & Wash features are active!", Duration = 5 })
+-- 2. Fast Player Speed
+local fastSpeed = false
+createButton("🚀 Toggle Fast Speed (Speed x3)", function(btn)
+	fastSpeed = not fastSpeed
+	local char = player.Character
+	if char and char:FindFirstChild("Humanoid") then
+		char.Humanoid.WalkSpeed = fastSpeed and 48 or 16
+		btn.BackgroundColor3 = fastSpeed and Color3.fromRGB(40, 140, 80) or Color3.fromRGB(44, 52, 68)
+	end
+end)
+
+-- 3. Infinite Spray Range
+createButton("🎯 Set Infinite Washer Range", function(btn)
+	local stats = player:FindFirstChild("PlayerStats")
+	if stats and stats:FindFirstChild("WasherRange") then
+		stats.WasherRange.Value = 99999
+		btn.Text = "🎯 Washer Range: INFINITE ✅"
+		btn.BackgroundColor3 = Color3.fromRGB(40, 140, 80)
+	end
+end)
+
+-- 4. Max Washer Power
+createButton("💥 Set Max Washer Power", function(btn)
+	local stats = player:FindFirstChild("PlayerStats")
+	if stats and stats:FindFirstChild("WasherPower") then
+		stats.WasherPower.Value = 1000
+		btn.Text = "💥 Washer Power: 1000 MAX ✅"
+		btn.BackgroundColor3 = Color3.fromRGB(40, 140, 80)
+	end
+end)
+
+-- 5. Give Cash
+createButton("💰 Give +1,000 Cash", function(btn)
+	if player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash") then
+		player.leaderstats.Cash.Value = player.leaderstats.Cash.Value + 1000
+	end
+end)
+
+-- 6. Reset All House Dirt
+createButton("🔄 Reset & Respawn All Dirt", function(btn)
+	local houseDirt = workspace:FindFirstChild("HouseDirt")
+	if houseDirt then
+		for _, part in ipairs(houseDirt:GetDescendants()) do
+			if part:IsA("BasePart") and part:FindFirstChild("DirtHealth") then
+				part.DirtHealth.Value = part:FindFirstChild("MaxDirtHealth") and part.MaxDirtHealth.Value or 100
+				part.Transparency = 0
+				part.CanCollide = true
+			end
+		end
+	end
+end)
