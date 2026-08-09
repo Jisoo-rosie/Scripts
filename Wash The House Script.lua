@@ -1,36 +1,37 @@
 -- =======================================================
--- UNIVERSAL & ULTIMATE WASH THE HOUSE SCRIPT (100% WORKING)
+-- ULTIMATE WASH THE HOUSE SCRIPT (VIRTUAL ENGINE V3)
 -- =======================================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
+local mouse = player:GetMouse()
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Remove old GUI if exists
-if playerGui:FindFirstChild("WashHouseControlPanel") then
-	playerGui.WashHouseControlPanel:Destroy()
+-- Destroy previous GUI instance if open
+if playerGui:FindFirstChild("WashHouseMasterV3") then
+	playerGui.WashHouseMasterV3:Destroy()
 end
 
 -- 1. Main ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WashHouseControlPanel"
+screenGui.Name = "WashHouseMasterV3"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- 2. Resizable & Draggable Main Frame
+-- 2. Resizable & Draggable Window Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 340, 0, 380)
-mainFrame.Position = UDim2.new(0.5, -170, 0.5, -190)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 32)
+mainFrame.Size = UDim2.new(0, 350, 0, 390)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -195)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 22, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.ClipsDescendants = false
 mainFrame.ZIndex = 1
 mainFrame.Parent = screenGui
 
@@ -38,11 +39,11 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = mainFrame
 
--- 3. Top Header Bar
+-- 3. Top Drag Header
 local topBar = Instance.new("Frame")
 topBar.Name = "TopBar"
 topBar.Size = UDim2.new(1, 0, 0, 42)
-topBar.BackgroundColor3 = Color3.fromRGB(32, 38, 52)
+topBar.BackgroundColor3 = Color3.fromRGB(30, 36, 50)
 topBar.BorderSizePixel = 0
 topBar.ZIndex = 2
 topBar.Parent = mainFrame
@@ -52,7 +53,7 @@ topCorner.CornerRadius = UDim.new(0, 12)
 topCorner.Parent = topBar
 
 local title = Instance.new("TextLabel")
-title.Text = "🧹 WASH THE HOUSE - Master Panel"
+title.Text = "🧹 WASH THE HOUSE - Engine V3"
 title.Size = UDim2.new(1, -15, 1, 0)
 title.Position = UDim2.new(0, 12, 0, 0)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -63,7 +64,7 @@ title.BackgroundTransparency = 1
 title.ZIndex = 3
 title.Parent = topBar
 
--- Header Dragging Logic
+-- Draggable Logic
 local dragging, dragInput, dragStart, startPos
 topBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -127,7 +128,7 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--- 5. Scrollable Container
+-- 5. Scrollable Frame
 local scroll = Instance.new("ScrollingFrame")
 scroll.Name = "FeatureScroll"
 scroll.Size = UDim2.new(1, -16, 1, -56)
@@ -135,7 +136,7 @@ scroll.Position = UDim2.new(0, 8, 0, 48)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
 scroll.ScrollBarThickness = 6
-scroll.CanvasSize = UDim2.new(0, 0, 0, 400)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 420)
 scroll.ZIndex = 4
 scroll.Active = true
 scroll.Parent = mainFrame
@@ -145,7 +146,7 @@ uiList.SortOrder = Enum.SortOrder.LayoutOrder
 uiList.Padding = UDim.new(0, 8)
 uiList.Parent = scroll
 
--- Helper Function to Create Always Clickable Buttons
+-- Helper to Create Clickable Buttons
 local function createButton(text, callback)
 	local btnContainer = Instance.new("Frame")
 	btnContainer.Size = UDim2.new(1, -8, 0, 42)
@@ -155,7 +156,7 @@ local function createButton(text, callback)
 
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, 0, 1, 0)
-	btn.BackgroundColor3 = Color3.fromRGB(40, 48, 64)
+	btn.BackgroundColor3 = Color3.fromRGB(38, 46, 62)
 	btn.TextColor3 = Color3.fromRGB(245, 245, 245)
 	btn.Font = Enum.Font.SourceSansBold
 	btn.TextSize = 15
@@ -177,10 +178,110 @@ local function createButton(text, callback)
 end
 
 -- =======================================================
--- FUNCTIONAL FEATURES
+-- ADVANCED FEATURES IMPLEMENTATION
 -- =======================================================
 
--- Feature 1: Fast WalkSpeed
+-- Feature 1: Real Virtual Mouse Auto Spray
+local autoSpray = false
+createButton("💦 Auto Spray (Virtual Clicker): OFF", function(btn)
+	autoSpray = not autoSpray
+	btn.Text = autoSpray and "💦 Auto Spray (Virtual Clicker): ON" or "💦 Auto Spray (Virtual Clicker): OFF"
+	btn.BackgroundColor3 = autoSpray and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(38, 46, 62)
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.05)
+		if autoSpray then
+			local char = player.Character
+			if char and char:FindFirstChildOfClass("Tool") then
+				-- Simulate Hardware Mouse Click
+				VirtualInputManager:SendMouseButtonEvent(mouse.X, mouse.Y, 0, true, game, 0)
+				task.wait(0.02)
+				VirtualInputManager:SendMouseButtonEvent(mouse.X, mouse.Y, 0, false, game, 0)
+			end
+		end
+	end
+end)
+
+-- Feature 2: Smart Remote Auto Clean
+local autoClean = false
+createButton("⚡ Smart Auto Clean Dirt: OFF", function(btn)
+	autoClean = not autoClean
+	btn.Text = autoClean and "⚡ Smart Auto Clean Dirt: ON" or "⚡ Smart Auto Clean Dirt: OFF"
+	btn.BackgroundColor3 = autoClean and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(38, 46, 62)
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		if autoClean then
+			-- Scan for cleaning remotes dynamically
+			local cleaningRemotes = {}
+			for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
+				if item:IsA("RemoteEvent") then
+					local name = string.lower(item.Name)
+					if string.find(name, "clean") or string.find(name, "wash") or string.find(name, "spray") or string.find(name, "water") or string.find(name, "hit") then
+						table.insert(cleaningRemotes, item)
+					end
+				end
+			end
+
+			-- Scan workspace for dirt parts
+			for _, v in ipairs(Workspace:GetDescendants()) do
+				if v:IsA("BasePart") and v.Transparency < 1 then
+					local n = string.lower(v.Name)
+					if string.find(n, "dirt") or string.find(n, "mud") or string.find(n, "stain") or string.find(n, "clean") or v:FindFirstChild("DirtHealth") then
+						-- Fire found remotes or clean directly
+						for _, remote in ipairs(cleaningRemotes) do
+							remote:FireServer(v, 100)
+						end
+						if v:FindFirstChild("DirtHealth") then
+							v.DirtHealth.Value = 0
+							v.Transparency = 1
+						end
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- Feature 3: Deep Tool Power & Range Boost
+createButton("💥 Boost Tool Range & Power (Equipped Tool)", function(btn)
+	local char = player.Character
+	local tool = char and char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
+
+	if tool then
+		-- Modify internal values inside the tool
+		for _, v in ipairs(tool:GetDescendants()) do
+			if v:IsA("ValueBase") then
+				local n = string.lower(v.Name)
+				if string.find(n, "range") or string.find(n, "power") or string.find(n, "distance") or string.find(n, "damage") or string.find(n, "speed") or string.find(n, "size") then
+					v.Value = 99999
+				elseif string.find(n, "cooldown") or string.find(n, "delay") or string.find(n, "wait") then
+					v.Value = 0
+				end
+			end
+		end
+		-- Modify Tool Attributes
+		for attr, val in pairs(tool:GetAttributes()) do
+			if type(val) == "number" then
+				tool:SetAttribute(attr, 99999)
+			end
+		end
+		btn.Text = "💥 Tool Range & Power Boosted! ✅"
+		btn.BackgroundColor3 = Color3.fromRGB(36, 140, 75)
+	else
+		btn.Text = "⚠️ Please Equip Washer Tool First!"
+		btn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+		task.wait(2)
+		btn.Text = "💥 Boost Tool Range & Power (Equipped Tool)"
+		btn.BackgroundColor3 = Color3.fromRGB(38, 46, 62)
+	end
+end)
+
+-- Feature 4: WalkSpeed Boost
 local fastSpeed = false
 createButton("🚀 WalkSpeed Boost: OFF", function(btn)
 	fastSpeed = not fastSpeed
@@ -188,11 +289,11 @@ createButton("🚀 WalkSpeed Boost: OFF", function(btn)
 	if char and char:FindFirstChild("Humanoid") then
 		char.Humanoid.WalkSpeed = fastSpeed and 50 or 16
 		btn.Text = fastSpeed and "🚀 WalkSpeed Boost: ON (50)" or "🚀 WalkSpeed Boost: OFF"
-		btn.BackgroundColor3 = fastSpeed and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(40, 48, 64)
+		btn.BackgroundColor3 = fastSpeed and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(38, 46, 62)
 	end
 end)
 
--- Feature 2: High Jump Boost
+-- Feature 5: High Jump Boost
 local highJump = false
 createButton("🦘 High Jump Boost: OFF", function(btn)
 	highJump = not highJump
@@ -201,74 +302,12 @@ createButton("🦘 High Jump Boost: OFF", function(btn)
 		char.Humanoid.JumpPower = highJump and 120 or 50
 		char.Humanoid.UseJumpPower = true
 		btn.Text = highJump and "🦘 High Jump Boost: ON (120)" or "🦘 High Jump Boost: OFF"
-		btn.BackgroundColor3 = highJump and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(40, 48, 64)
+		btn.BackgroundColor3 = highJump and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(38, 46, 62)
 	end
 end)
 
--- Feature 3: Auto Spray / Auto Hold Tool Click
-local autoSpray = false
-createButton("💦 Auto Spray / Fast Washer: OFF", function(btn)
-	autoSpray = not autoSpray
-	btn.Text = autoSpray and "💦 Auto Spray / Fast Washer: ON" or "💦 Auto Spray / Fast Washer: OFF"
-	btn.BackgroundColor3 = autoSpray and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(40, 48, 64)
-end)
-
-RunService.RenderStepped:Connect(function()
-	if autoSpray then
-		local char = player.Character
-		if char then
-			local tool = char:FindFirstChildOfClass("Tool")
-			if tool then
-				tool:Activate()
-			end
-		end
-	end
-end)
-
--- Feature 4: Universal Auto Clean Nearby Dirt
-local autoClean = false
-createButton("⚡ Auto Clean Nearby Dirt: OFF", function(btn)
-	autoClean = not autoClean
-	btn.Text = autoClean and "⚡ Auto Clean Nearby Dirt: ON" or "⚡ Auto Clean Nearby Dirt: OFF"
-	btn.BackgroundColor3 = autoClean and Color3.fromRGB(36, 140, 75) or Color3.fromRGB(40, 48, 64)
-end)
-
-RunService.RenderStepped:Connect(function()
-	if autoClean then
-		-- Search workspace for dirt / cleanable objects dynamically
-		for _, v in ipairs(Workspace:GetDescendants()) do
-			if v:IsA("BasePart") then
-				local nameLower = string.lower(v.Name)
-				if string.find(nameLower, "dirt") or string.find(nameLower, "mud") or string.find(nameLower, "stain") or v:FindFirstChild("DirtHealth") then
-					local cleanEvent = ReplicatedStorage:FindFirstChild("CleanDirt", true) or Workspace:FindFirstChild("CleanDirt", true)
-					if cleanEvent and cleanEvent:IsA("RemoteEvent") then
-						cleanEvent:FireServer(v)
-					elseif v:FindFirstChild("DirtHealth") then
-						v.DirtHealth.Value = 0
-						v.Transparency = 1
-					end
-				end
-			end
-		end
-	end
-end)
-
--- Feature 5: Max Washer Power & Range
-createButton("💥 Boost Washer Range & Power", function(btn)
-	local stats = player:FindFirstChild("PlayerStats") or player:FindFirstChild("stats")
-	if stats then
-		for _, val in ipairs(stats:GetChildren()) do
-			if val:IsA("NumberValue") or val:IsA("IntValue") then
-				val.Value = 99999
-			end
-		end
-	end
-	btn.Text = "💥 Range & Power Boosted ✅"
-	btn.BackgroundColor3 = Color3.fromRGB(36, 140, 75)
-end)
-
--- Feature 6: Add +1,000 Cash
-createButton("💰 Give +1,000 Cash", function(btn)
+-- Feature 6: Add Cash
+createButton("💰 Add +1,000 Cash", function(btn)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	if leaderstats then
 		for _, val in ipairs(leaderstats:GetChildren()) do
