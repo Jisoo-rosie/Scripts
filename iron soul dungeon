@@ -1,0 +1,73 @@
+local coin = script.Parent
+local db = false
+local coinValue = 10
+
+-- NAYA FEATURE: Coin uthane ka Sound Effect
+local pickupSound = Instance.new("Sound")
+pickupSound.SoundId = "rbxassetid://1347563171" -- Coin Sound ID
+pickupSound.Volume = 1
+pickupSound.Parent = coin
+
+-- NAYA FEATURE: Coin par chamak (Sparkles)
+local sparkles = Instance.new("Sparkles")
+sparkles.SparkleColor = Color3.new(1, 0.8, 0) -- Golden chamak
+sparkles.Enabled = true
+sparkles.Parent = coin
+
+-- NAYA FEATURE: Bobbing aur Spinning Animation (Hawa mein tairna)
+local startPos = coin.Position
+local timeElapsed = 0
+
+spawn(function()
+    while task.wait(0.03) do
+        if coin and coin.Parent and not db then
+            timeElapsed = timeElapsed + 0.1
+            
+            -- Math.sin ka use karke coin ko upar neche karna
+            local bobbingHeight = math.sin(timeElapsed) * 0.5 
+            
+            -- Position (upar neche) aur Rotation (ghumna) ek sath apply karna
+            local newPosition = startPos + Vector3.new(0, bobbingHeight, 0)
+            coin.CFrame = CFrame.new(newPosition) * CFrame.Angles(0, timeElapsed * 2, 0)
+        else
+            break
+        end
+    end
+end)
+
+-- Player ke touch karne par:
+coin.Touched:Connect(function(hit)
+    if db then return end
+    
+    local character = hit.Parent
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if humanoid then
+        local player = game.Players:GetPlayerFromCharacter(character)
+        
+        if player then
+            db = true -- Spam lock
+            
+            -- Sound play karein aur Sparkles band kar dein
+            pickupSound:Play()
+            sparkles.Enabled = false
+            
+            -- Player ke Stats mein Coins add karein
+            local leaderstats = player:FindFirstChild("leaderstats")
+            if leaderstats then
+                local coinsStat = leaderstats:FindFirstChild("Coins")
+                if coinsStat then
+                    coinsStat.Value = coinsStat.Value + coinValue
+                end
+            end
+            
+            -- Coin ko chupa dein (Taqay sound play hoti rahay)
+            coin.Transparency = 1
+            coin.CanCollide = false
+            
+            -- Sound khatam hone ka wait karein aur phir coin delete kar dein
+            task.wait(pickupSound.TimeLength) 
+            coin:Destroy()
+        end
+    end
+end)
