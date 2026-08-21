@@ -59,9 +59,7 @@ local function getNearestEnemy()
     local nearest = nil
     local nearestDistance = Settings.TargetDistance
 
-    -- Check Workspace for Enemies folder or general workspace NPCs
     local enemiesFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Monsters")
-
     local list = enemiesFolder and enemiesFolder:GetChildren() or workspace:GetChildren()
 
     for _, enemy in ipairs(list) do
@@ -247,101 +245,145 @@ end
 --------------------------------------------------
 -- DELTA MOBILE FRIENDLY UI (Rayfield Library)
 --------------------------------------------------
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
 
-local Window = Rayfield:CreateWindow({
-   Name = "⚡ Automation Hub | Delta",
-   LoadingTitle = "Delta Controller",
-   LoadingSubtitle = "by AutoScript",
-   ConfigurationSaving = {
-      Enabled = false
-   },
-   KeySystem = false
-})
+if success and Rayfield then
+    local Window = Rayfield:CreateWindow({
+       Name = "⚡ Automation Hub | Delta",
+       LoadingTitle = "Delta Controller",
+       LoadingSubtitle = "by AutoScript",
+       ConfigurationSaving = {
+          Enabled = false
+       },
+       KeySystem = false
+    })
 
-local CombatTab = Window:CreateTab("⚔️ Combat", 4483362458)
-local MoveTab = Window:CreateTab("🏃 Movement & Loot", 4483362458)
+    local CombatTab = Window:CreateTab("⚔️ Combat", 4483362458)
+    local MoveTab = Window:CreateTab("🏃 Movement & Loot", 4483362458)
 
--- Combat Toggles
-CombatTab:CreateToggle({
-   Name = "Auto Target (Nearest Enemy)",
-   CurrentValue = Settings.AutoTarget,
-   Flag = "AutoTarget",
-   Callback = function(Value)
-       Settings.AutoTarget = Value
-   end,
-})
+    CombatTab:CreateToggle({
+       Name = "Auto Target (Nearest Enemy)",
+       CurrentValue = Settings.AutoTarget,
+       Flag = "AutoTarget",
+       Callback = function(Value)
+           Settings.AutoTarget = Value
+       end,
+    })
 
-CombatTab:CreateToggle({
-   Name = "Auto Attack",
-   CurrentValue = Settings.AutoAttack,
-   Flag = "AutoAttack",
-   Callback = function(Value)
-       Settings.AutoAttack = Value
-   end,
-})
+    CombatTab:CreateToggle({
+       Name = "Auto Attack",
+       CurrentValue = Settings.AutoAttack,
+       Flag = "AutoAttack",
+       Callback = function(Value)
+           Settings.AutoAttack = Value
+       end,
+    })
 
-CombatTab:CreateToggle({
-   Name = "Auto Skill",
-   CurrentValue = Settings.AutoSkill,
-   Flag = "AutoSkill",
-   Callback = function(Value)
-       Settings.AutoSkill = Value
-   end,
-})
+    CombatTab:CreateToggle({
+       Name = "Auto Skill",
+       CurrentValue = Settings.AutoSkill,
+       Flag = "AutoSkill",
+       Callback = function(Value)
+           Settings.AutoSkill = Value
+       end,
+    })
 
-CombatTab:CreateToggle({
-   Name = "Auto Dodge",
-   CurrentValue = Settings.AutoDodge,
-   Flag = "AutoDodge",
-   Callback = function(Value)
-       Settings.AutoDodge = Value
-   end,
-})
+    CombatTab:CreateToggle({
+       Name = "Auto Dodge",
+       CurrentValue = Settings.AutoDodge,
+       Flag = "AutoDodge",
+       Callback = function(Value)
+           Settings.AutoDodge = Value
+       end,
+    })
 
-CombatTab:CreateSlider({
-   Name = "Target Distance",
-   Range = {10, 150},
-   Increment = 5,
-   Suffix = " Studs",
-   CurrentValue = Settings.TargetDistance,
-   Flag = "TargetDist",
-   Callback = function(Value)
-       Settings.TargetDistance = Value
-   end,
-})
+    CombatTab:CreateSlider({
+       Name = "Target Distance",
+       Range = {10, 150},
+       Increment = 5,
+       Suffix = " Studs",
+       CurrentValue = Settings.TargetDistance,
+       Flag = "TargetDist",
+       Callback = function(Value)
+           Settings.TargetDistance = Value
+       end,
+    })
 
--- Movement & Utility Toggles
-MoveTab:CreateToggle({
-   Name = "Auto Follow Target",
-   CurrentValue = Settings.AutoMovement,
-   Flag = "AutoMove",
-   Callback = function(Value)
-       Settings.AutoMovement = Value
-   end,
-})
+    MoveTab:CreateToggle({
+       Name = "Auto Follow Target",
+       CurrentValue = Settings.AutoMovement,
+       Flag = "AutoMove",
+       Callback = function(Value)
+           Settings.AutoMovement = Value
+       end,
+    })
 
-MoveTab:CreateToggle({
-   Name = "Auto Loot",
-   CurrentValue = Settings.AutoLoot,
-   Flag = "AutoLoot",
-   Callback = function(Value)
-       Settings.AutoLoot = Value
-   end,
-})
+    MoveTab:CreateToggle({
+       Name = "Auto Loot",
+       CurrentValue = Settings.AutoLoot,
+       Flag = "AutoLoot",
+       Callback = function(Value)
+           Settings.AutoLoot = Value
+       end,
+    })
 
-MoveTab:CreateToggle({
-   Name = "Auto Equip Best Weapon",
-   CurrentValue = Settings.AutoEquipBest,
-   Flag = "AutoEquip",
-   Callback = function(Value)
-       Settings.AutoEquipBest = Value
-   end,
-})
+    MoveTab:CreateToggle({
+       Name = "Auto Equip Best Weapon",
+       CurrentValue = Settings.AutoEquipBest,
+       Flag = "AutoEquip",
+       Callback = function(Value)
+           Settings.AutoEquipBest = Value
+       end,
+    })
 
-Rayfield:Notify({
-   Title = "Automation Loaded",
-   Content = "Delta Executor ke sath script load ho chuki hai!",
-   Duration = 5,
-   Image = 4483362458,
-})
+    Rayfield:Notify({
+       Title = "Automation Loaded",
+       Content = "Delta Executor ke sath script load ho chuki hai!",
+       Duration = 5,
+       Image = 4483362458,
+    })
+else
+    -- Fallback simple ScreenGui if Rayfield fails
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "DeltaFallbackGUI"
+    ScreenGui.Parent = game.CoreGui or player:WaitForChild("PlayerGui")
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 180, 0, 200)
+    Frame.Position = UDim2.new(0, 20, 0.3, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    Frame.Active = true
+    Frame.Draggable = true
+    Frame.Parent = ScreenGui
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.Text = "⚡ Delta Auto Hub"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    Title.Parent = Frame
+
+    local function makeButton(text, yPos, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0.9, 0, 0, 30)
+        btn.Position = UDim2.new(0.05, 0, 0, yPos)
+        btn.Text = text .. ": OFF"
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Parent = Frame
+        local state = false
+        btn.MouseButton1Click:Connect(function()
+            state = not state
+            btn.Text = text .. (state and ": ON" or ": OFF")
+            btn.BackgroundColor3 = state and Color3.fromRGB(40, 180, 70) or Color3.fromRGB(60, 60, 70)
+            callback(state)
+        end)
+    end
+
+    makeButton("Auto Attack", 40, function(s) Settings.AutoAttack = s Settings.AutoTarget = s end)
+    makeButton("Auto Skill", 80, function(s) Settings.AutoSkill = s end)
+    makeButton("Auto Follow", 120, function(s) Settings.AutoMovement = s end)
+    makeButton("Auto Loot", 160, function(s) Settings.AutoLoot = s end)
+end
