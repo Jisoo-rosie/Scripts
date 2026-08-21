@@ -1,58 +1,347 @@
--- Simple Lua UI Test
+--[[
+    Automation Controller (Delta Executor Ready)
+    Optimized for Delta Mobile & PC
+]]
 
+-- Re-execution Cleanup (Purani script ko band karega agar dubara execute karein)
+if getgenv().AutomationLoaded and getgenv().AutomationCleanup then
+    pcall(getgenv().AutomationCleanup)
+end
+getgenv().AutomationLoaded = true
+
+-- Services
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
 local player = Players.LocalPlayer
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "LuaTestUI"
-gui.ResetOnSpawn = false
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+local Settings = {
+    AutoAttack = false,
+    AutoSkill = false,
+    AutoEquipBest = false,
+    AutoMovement = false,
+    AutoTarget = false,
+    AutoLoot = false,
+    AutoDodge = false,
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 120)
-frame.Position = UDim2.new(0.5, -150, 0.5, -60)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-frame.BorderSizePixel = 0
-frame.Parent = gui
+    AttackInterval = 0.35,
+    SkillInterval = 2.0,
+    MovementDistance = 8,
+    TargetDistance = 60
+}
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = frame
+--------------------------------------------------
+-- CHARACTER HANDLING
+--------------------------------------------------
+local Character = player.Character or player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid", 5)
+local RootPart = Character:WaitForChild("HumanoidRootPart", 5)
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 45)
-title.BackgroundTransparency = 1
-title.Text = "LUA TEST"
-title.TextColor3 = Color3.fromRGB(255, 200, 70)
-title.TextSize = 22
-title.Font = Enum.Font.GothamBold
-title.Parent = frame
-
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -20, 0, 35)
-status.Position = UDim2.new(0, 10, 0, 50)
-status.BackgroundTransparency = 1
-status.Text = "✓ Script executed successfully"
-status.TextColor3 = Color3.fromRGB(100, 255, 140)
-status.TextSize = 15
-status.Font = Enum.Font.Gotham
-status.Parent = frame
-
-local close = Instance.new("TextButton")
-close.Size = UDim2.new(0, 80, 0, 25)
-close.Position = UDim2.new(0.5, -40, 1, -30)
-close.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-close.Text = "Close"
-close.TextColor3 = Color3.new(1, 1, 1)
-close.TextSize = 13
-close.Font = Enum.Font.GothamBold
-close.Parent = frame
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 6)
-closeCorner.Parent = close
-
-close.MouseButton1Click:Connect(function()
-    gui:Destroy()
+local charConn = player.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    Humanoid = newChar:WaitForChild("Humanoid", 5)
+    RootPart = newChar:WaitForChild("HumanoidRootPart", 5)
 end)
 
-gui.Parent = player:WaitForChild("PlayerGui")
+--------------------------------------------------
+-- TARGET SYSTEM
+--------------------------------------------------
+local CurrentTarget = nil
+
+local function getNearestEnemy()
+    if not RootPart or not RootPart.Parent then return nil end
+
+    local nearest = nil
+    local nearestDistance = Settings.TargetDistance
+
+    -- Check Workspace for Enemies folder or general workspace NPCs
+    local enemiesFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Monsters")
+
+    local list = enemiesFolder and enemiesFolder:GetChildren() or workspace:GetChildren()
+
+    for _, enemy in ipairs(list) do
+        if enemy:IsA("Model") and enemy ~= Character then
+            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
+            local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
+
+            if enemyRoot and enemyHumanoid and enemyHumanoid.Health > 0 then
+                local distance = (RootPart.Position - enemyRoot.Position).Magnitude
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearest = enemy
+                end
+            end
+        end
+    end
+
+    return nearest
+end
+
+local function updateTarget()
+    if not Settings.AutoTarget then
+        CurrentTarget = nil
+        return
+    end
+    CurrentTarget = getNearestEnemy()
+end
+
+--------------------------------------------------
+-- COMBAT & SKILLS
+--------------------------------------------------
+local lastAttack = 0
+local function autoAttack()
+    if not Settings.AutoAttack or not CurrentTarget or not RootPart then return end
+
+    local targetRoot = CurrentTarget:FindFirstChild("HumanoidRootPart") or CurrentTarget:FindFirstChild("Torso")
+    if not targetRoot then return end
+
+    local distance = (RootPart.Position - targetRoot.Position).Magnitude
+    if distance > Settings.TargetDistance then return end
+
+    if os.clock() - lastAttack < Settings.AttackInterval then return end
+    lastAttack = os.clock()
+
+    local combatRemote = ReplicatedStorage:FindFirstChild("CombatRemote") or ReplicatedStorage:FindFirstChild("Attack")
+    if combatRemote and combatRemote:IsA("RemoteEvent") then
+        pcall(function()
+            combatRemote:FireServer("Attack", CurrentTarget)
+        end)
+    end
+end
+
+local lastSkill = 0
+local function autoSkill()
+    if not Settings.AutoSkill or not CurrentTarget then return end
+    if os.clock() - lastSkill < Settings.SkillInterval then return end
+    lastSkill = os.clock()
+
+    local skillRemote = ReplicatedStorage:FindFirstChild("SkillRemote") or ReplicatedStorage:FindFirstChild("UseSkill")
+    if skillRemote and skillRemote:IsA("RemoteEvent") then
+        pcall(function()
+            skillRemote:FireServer("UseSkill", CurrentTarget)
+        end)
+    end
+end
+
+--------------------------------------------------
+-- MOVEMENT
+--------------------------------------------------
+local function autoMovement()
+    if not Settings.AutoMovement or not RootPart or not Humanoid or not CurrentTarget then return end
+
+    local targetRoot = CurrentTarget:FindFirstChild("HumanoidRootPart") or CurrentTarget:FindFirstChild("Torso")
+    if not targetRoot then return end
+
+    local distance = (targetRoot.Position - RootPart.Position).Magnitude
+    if distance > Settings.MovementDistance then
+        Humanoid:MoveTo(targetRoot.Position)
+    end
+end
+
+--------------------------------------------------
+-- AUTO EQUIP BEST
+--------------------------------------------------
+local function autoEquipBest()
+    if not Settings.AutoEquipBest then return end
+
+    local inventory = player:FindFirstChild("Inventory") or player:FindFirstChild("Backpack")
+    if not inventory then return end
+
+    local bestItem = nil
+    local bestPower = -math.huge
+
+    for _, item in ipairs(inventory:GetChildren()) do
+        local power = item:GetAttribute("Power") or item:GetAttribute("Damage")
+        if power and power > bestPower then
+            bestPower = power
+            bestItem = item
+        end
+    end
+
+    if bestItem then
+        local equipRemote = ReplicatedStorage:FindFirstChild("EquipmentRemote") or ReplicatedStorage:FindFirstChild("Equip")
+        if equipRemote and equipRemote:IsA("RemoteEvent") then
+            pcall(function()
+                equipRemote:FireServer("Equip", bestItem)
+            end)
+        end
+    end
+end
+
+--------------------------------------------------
+-- AUTO LOOT & DODGE
+--------------------------------------------------
+local function autoLoot()
+    if not Settings.AutoLoot or not RootPart then return end
+
+    local lootFolder = workspace:FindFirstChild("Loot") or workspace:FindFirstChild("Drops")
+    if not lootFolder then return end
+
+    for _, loot in ipairs(lootFolder:GetChildren()) do
+        local lootPart = loot:FindFirstChildWhichIsA("BasePart")
+        if lootPart then
+            local distance = (RootPart.Position - lootPart.Position).Magnitude
+            if distance <= 20 then
+                local lootRemote = ReplicatedStorage:FindFirstChild("LootRemote") or ReplicatedStorage:FindFirstChild("CollectLoot")
+                if lootRemote and lootRemote:IsA("RemoteEvent") then
+                    pcall(function()
+                        lootRemote:FireServer("Collect", loot)
+                    end)
+                end
+            end
+        end
+    end
+end
+
+local function autoDodge()
+    if not Settings.AutoDodge or not Character then return end
+
+    local dodgeRemote = ReplicatedStorage:FindFirstChild("DodgeRemote") or ReplicatedStorage:FindFirstChild("Dodge")
+    if dodgeRemote and dodgeRemote:IsA("RemoteEvent") then
+        pcall(function()
+            dodgeRemote:FireServer()
+        end)
+    end
+end
+
+--------------------------------------------------
+-- MAIN LOOP
+--------------------------------------------------
+local targetTimer = 0
+local equipTimer = 0
+local dodgeTimer = 0
+
+local heartbeatConn = RunService.Heartbeat:Connect(function()
+    if os.clock() - targetTimer >= 0.25 then
+        targetTimer = os.clock()
+        updateTarget()
+    end
+
+    autoAttack()
+    autoSkill()
+    autoMovement()
+    autoLoot()
+
+    if os.clock() - equipTimer >= 3 then
+        equipTimer = os.clock()
+        autoEquipBest()
+    end
+
+    if os.clock() - dodgeTimer >= 1 then
+        dodgeTimer = os.clock()
+        autoDodge()
+    end
+end)
+
+-- Cleanup function
+getgenv().AutomationCleanup = function()
+    if heartbeatConn then heartbeatConn:Disconnect() end
+    if charConn then charConn:Disconnect() end
+end
+
+--------------------------------------------------
+-- DELTA MOBILE FRIENDLY UI (Rayfield Library)
+--------------------------------------------------
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "⚡ Automation Hub | Delta",
+   LoadingTitle = "Delta Controller",
+   LoadingSubtitle = "by AutoScript",
+   ConfigurationSaving = {
+      Enabled = false
+   },
+   KeySystem = false
+})
+
+local CombatTab = Window:CreateTab("⚔️ Combat", 4483362458)
+local MoveTab = Window:CreateTab("🏃 Movement & Loot", 4483362458)
+
+-- Combat Toggles
+CombatTab:CreateToggle({
+   Name = "Auto Target (Nearest Enemy)",
+   CurrentValue = Settings.AutoTarget,
+   Flag = "AutoTarget",
+   Callback = function(Value)
+       Settings.AutoTarget = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Auto Attack",
+   CurrentValue = Settings.AutoAttack,
+   Flag = "AutoAttack",
+   Callback = function(Value)
+       Settings.AutoAttack = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Auto Skill",
+   CurrentValue = Settings.AutoSkill,
+   Flag = "AutoSkill",
+   Callback = function(Value)
+       Settings.AutoSkill = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Auto Dodge",
+   CurrentValue = Settings.AutoDodge,
+   Flag = "AutoDodge",
+   Callback = function(Value)
+       Settings.AutoDodge = Value
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Target Distance",
+   Range = {10, 150},
+   Increment = 5,
+   Suffix = " Studs",
+   CurrentValue = Settings.TargetDistance,
+   Flag = "TargetDist",
+   Callback = function(Value)
+       Settings.TargetDistance = Value
+   end,
+})
+
+-- Movement & Utility Toggles
+MoveTab:CreateToggle({
+   Name = "Auto Follow Target",
+   CurrentValue = Settings.AutoMovement,
+   Flag = "AutoMove",
+   Callback = function(Value)
+       Settings.AutoMovement = Value
+   end,
+})
+
+MoveTab:CreateToggle({
+   Name = "Auto Loot",
+   CurrentValue = Settings.AutoLoot,
+   Flag = "AutoLoot",
+   Callback = function(Value)
+       Settings.AutoLoot = Value
+   end,
+})
+
+MoveTab:CreateToggle({
+   Name = "Auto Equip Best Weapon",
+   CurrentValue = Settings.AutoEquipBest,
+   Flag = "AutoEquip",
+   Callback = function(Value)
+       Settings.AutoEquipBest = Value
+   end,
+})
+
+Rayfield:Notify({
+   Title = "Automation Loaded",
+   Content = "Delta Executor ke sath script load ho chuki hai!",
+   Duration = 5,
+   Image = 4483362458,
+})
