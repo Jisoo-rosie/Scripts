@@ -58,7 +58,7 @@ MainTab:CreateSlider({
 })
 
 ------------------------------------------------------------------
--- 2. Auto Cast Skills Toggle
+-- 2. Auto Cast Skills Toggle (Includes Auto Unlock & Auto Equip)
 ------------------------------------------------------------------
 MainTab:CreateToggle({
    Name = "Auto Cast Skills",
@@ -70,6 +70,20 @@ MainTab:CreateToggle({
          task.spawn(function()
             while AutoSkillEnabled do
                local VirtualInputManager = game:GetService("VirtualInputManager")
+               local ReplicatedStorage = game:GetService("ReplicatedStorage")
+               
+               -- 1. Auto Unlock & Equip Available Skills Loop
+               local unlockRemote = ReplicatedStorage:FindFirstChild("UnlockSkill", true) or ReplicatedStorage:FindFirstChild("UpgradeSkillTree", true)
+               local equipRemote = ReplicatedStorage:FindFirstChild("EquipSkill", true) or ReplicatedStorage:FindFirstChild("SetSkill", true)
+               
+               if unlockRemote and unlockRemote:IsA("RemoteEvent") then
+                  unlockRemote:FireServer()
+               end
+               if equipRemote and equipRemote:IsA("RemoteEvent") then
+                  equipRemote:FireServer()
+               end
+
+               -- 2. Cast Skills (1, 2, 3, 4 Keys Sequence)
                for _, key in ipairs({Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four}) do
                   if not AutoSkillEnabled then break end
                   VirtualInputManager:SendKeyEvent(true, key, false, game)
@@ -77,6 +91,7 @@ MainTab:CreateToggle({
                   VirtualInputManager:SendKeyEvent(false, key, false, game)
                   task.wait(0.1)
                end
+               
                task.wait(0.5)
             end
          end)
