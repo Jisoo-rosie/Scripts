@@ -1,6 +1,6 @@
 -- ===================================================================
--- MDScripts - Classroom Simulator Utility / UI Template
--- Game: Cheating During Testing / Classroom Survival
+-- MDScripts - Enhanced Controller for "Cheating During Testing"
+-- Compatible with Delta, Arceus X, Fluxus, Codex, Synapse, KRNL
 -- ===================================================================
 
 local Players = game:GetService("Players")
@@ -8,18 +8,20 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Cleanup previous UI if present
+-- Cleanup old instance
 if CoreGui:FindFirstChild("MDScripts_CheatingTesting") then
     CoreGui.MDScripts_CheatingTesting:Destroy()
 elseif LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("MDScripts_CheatingTesting") then
     LocalPlayer.PlayerGui.MDScripts_CheatingTesting:Destroy()
 end
 
--- Parent ScreenGui safely (Executor Compatibility)
+-- Safely Parent ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MDScripts_CheatingTesting"
 ScreenGui.ResetOnSpawn = false
@@ -41,13 +43,13 @@ if not ScreenGui.Parent then
 end
 
 -- ===================================================================
--- Alert Banner (Status Warning Pop-up)
+-- Alert Warning Banner
 -- ===================================================================
 local AlertBanner = Instance.new("Frame")
 AlertBanner.Name = "AlertBanner"
-AlertBanner.Size = UDim2.new(0, 220, 0, 36)
-AlertBanner.Position = UDim2.new(0.5, -110, 0, 15)
-AlertBanner.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+AlertBanner.Size = UDim2.new(0, 240, 0, 38)
+AlertBanner.Position = UDim2.new(0.5, -120, 0, 20)
+AlertBanner.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
 AlertBanner.Visible = false
 AlertBanner.Parent = ScreenGui
 
@@ -56,8 +58,8 @@ AlertCorner.CornerRadius = UDim.new(0, 8)
 AlertCorner.Parent = AlertBanner
 
 local AlertStroke = Instance.new("UIStroke")
-AlertStroke.Color = Color3.fromRGB(220, 40, 40)
-AlertStroke.Thickness = 1.5
+AlertStroke.Color = Color3.fromRGB(255, 45, 45)
+AlertStroke.Thickness = 2
 AlertStroke.Parent = AlertBanner
 
 local AlertText = Instance.new("TextLabel")
@@ -65,18 +67,18 @@ AlertText.Name = "AlertText"
 AlertText.Size = UDim2.new(1, 0, 1, 0)
 AlertText.BackgroundTransparency = 1
 AlertText.Text = "⚠️ TEACHER IS LOOKING!"
-AlertText.TextColor3 = Color3.fromRGB(255, 60, 60)
+AlertText.TextColor3 = Color3.fromRGB(255, 70, 70)
 AlertText.Font = Enum.Font.FredokaOne
 AlertText.TextSize = 14
 AlertText.Parent = AlertBanner
 
 -- ===================================================================
--- Main Control Hub
+-- Main Control Window
 -- ===================================================================
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainHub"
-MainFrame.Size = UDim2.new(0, 270, 0, 275)
-MainFrame.Position = UDim2.new(0.5, -135, 0.5, -137)
+MainFrame.Size = UDim2.new(0, 270, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -135, 0.5, -140)
 MainFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 18)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -143,10 +145,10 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Container for Toggles
+-- Container
 local Container = Instance.new("Frame")
 Container.Name = "Container"
-Container.Size = UDim2.new(1, -20, 0, 180)
+Container.Size = UDim2.new(1, -20, 0, 185)
 Container.Position = UDim2.new(0, 10, 0, 48)
 Container.BackgroundTransparency = 1
 Container.Parent = MainFrame
@@ -170,7 +172,7 @@ Footer.TextXAlignment = Enum.TextXAlignment.Left
 Footer.Parent = MainFrame
 
 -- ===================================================================
--- State & Toggle Creator
+-- State & Toggle Builder
 -- ===================================================================
 local Features = {
     ["Auto Answer"] = false,
@@ -276,16 +278,43 @@ local function CreateToggle(name, defaultState, callback)
 end
 
 -- ===================================================================
--- Helper: Find Teacher NPC Model
+-- Robust Teacher NPC Finder
 -- ===================================================================
 local function GetTeacherModel()
-    for _, model in ipairs(workspace:GetDescendants()) do
-        if model:IsA("Model") and (string.find(string.lower(model.Name), "teacher") or string.find(string.lower(model.Name), "instructor")) then
-            if model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") then
-                return model
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+            local isRealPlayer = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character == obj then
+                    isRealPlayer = true
+                    break
+                end
+            end
+
+            if not isRealPlayer then
+                local n = string.lower(obj.Name)
+                if string.find(n, "teach") or string.find(n, "instruct") or string.find(n, "prof") or string.find(n, "mr") or string.find(n, "miss") or string.find(n, "mrs") or string.find(n, "npc") then
+                    return obj
+                end
             end
         end
     end
+
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and (obj:FindFirstChild("Head") or obj:FindFirstChild("HumanoidRootPart")) then
+            local isRealPlayer = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character == obj then
+                    isRealPlayer = true
+                    break
+                end
+            end
+            if not isRealPlayer then
+                return obj
+            end
+        end
+    end
+
     return nil
 end
 
@@ -305,45 +334,46 @@ local function UpdateESP(enabled)
     task.spawn(function()
         while Features["Teacher ESP"] do
             local teacher = GetTeacherModel()
-            if teacher and teacher:FindFirstChild("HumanoidRootPart") then
-                -- Highlight Effect
+            if teacher and (teacher:FindFirstChild("HumanoidRootPart") or teacher:FindFirstChild("Head")) then
+                local targetPart = teacher:FindFirstChild("HumanoidRootPart") or teacher:FindFirstChild("Head")
+                
                 if not currentHighlight or currentHighlight.Parent ~= teacher then
                     if currentHighlight then currentHighlight:Destroy() end
                     currentHighlight = Instance.new("Highlight")
                     currentHighlight.Name = "MD_TeacherHighlight"
                     currentHighlight.FillColor = Color3.fromRGB(255, 50, 50)
                     currentHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    currentHighlight.FillTransparency = 0.5
+                    currentHighlight.FillTransparency = 0.4
                     currentHighlight.OutlineTransparency = 0.1
                     currentHighlight.Parent = teacher
                 end
 
-                -- Billboard with Distance
-                local root = teacher.HumanoidRootPart
-                if not currentBillboard or currentBillboard.Parent ~= root then
+                if not currentBillboard or currentBillboard.Parent ~= targetPart then
                     if currentBillboard then currentBillboard:Destroy() end
                     currentBillboard = Instance.new("BillboardGui")
                     currentBillboard.Name = "MD_TeacherTag"
-                    currentBillboard.Adornee = root
-                    currentBillboard.Size = UDim2.new(0, 120, 0, 40)
-                    currentBillboard.StudsOffset = Vector3.new(0, 3, 0)
+                    currentBillboard.Adornee = targetPart
+                    currentBillboard.Size = UDim2.new(0, 140, 0, 40)
+                    currentBillboard.StudsOffset = Vector3.new(0, 3.5, 0)
                     currentBillboard.AlwaysOnTop = true
 
                     local tagLabel = Instance.new("TextLabel")
                     tagLabel.Name = "TagLabel"
                     tagLabel.Size = UDim2.new(1, 0, 1, 0)
                     tagLabel.BackgroundTransparency = 1
-                    tagLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+                    tagLabel.TextColor3 = Color3.fromRGB(255, 75, 75)
                     tagLabel.Font = Enum.Font.FredokaOne
-                    tagLabel.TextSize = 13
+                    tagLabel.TextSize = 14
+                    tagLabel.TextStrokeTransparency = 0.2
+                    tagLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
                     tagLabel.Parent = currentBillboard
 
-                    currentBillboard.Parent = root
+                    currentBillboard.Parent = targetPart
                 end
 
                 if currentBillboard and currentBillboard:FindFirstChild("TagLabel") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = math.floor((root.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)
-                    currentBillboard.TagLabel.Text = "TEACHER [" .. tostring(dist) .. "m]"
+                    local dist = math.floor((targetPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                    currentBillboard.TagLabel.Text = "👩‍🏫 TEACHER [" .. tostring(dist) .. "m]"
                 end
             else
                 if currentHighlight then currentHighlight:Destroy() currentHighlight = nil end
@@ -357,7 +387,7 @@ local function UpdateESP(enabled)
 end
 
 -- ===================================================================
--- 2. Teacher Looking Alert (Line of Sight & Angle Check)
+-- 2. Teacher Looking Alert (Angle + Line of Sight)
 -- ===================================================================
 local function UpdateLookingAlert(enabled)
     if not enabled then
@@ -378,11 +408,10 @@ local function UpdateLookingAlert(enabled)
                 local dirToMe = (myPos - teacherPos).Unit
                 local teacherLook = teacherHead.CFrame.LookVector
 
-                -- Dot product: 1 = facing directly, 0 = 90 deg, -1 = looking away
                 local dot = teacherLook:Dot(dirToMe)
                 local distance = (myPos - teacherPos).Magnitude
 
-                if dot > 0.55 and distance < 65 then
+                if dot > 0.45 and distance < 75 then
                     AlertBanner.Visible = true
                     AlertText.Text = "⚠️ TEACHER IS LOOKING! (" .. math.floor(distance) .. "m)"
                 else
@@ -398,24 +427,55 @@ local function UpdateLookingAlert(enabled)
 end
 
 -- ===================================================================
--- 3. Auto Answer Loop
+-- 3. Auto Answer (Bubbles, Prompts & GUI Solver)
 -- ===================================================================
 local function UpdateAutoAnswer(enabled)
     if not enabled then return end
 
     task.spawn(function()
         while Features["Auto Answer"] do
-            task.wait(0.5)
+            task.wait(0.4)
             pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    for _, element in ipairs(playerGui:GetDescendants()) do
-                        if element:IsA("TextButton") or element:IsA("ImageButton") then
-                            local lowerName = string.lower(element.Name)
-                            local text = element:IsA("TextButton") and string.lower(element.Text) or ""
+                -- 1. Auto Trigger ProximityPrompt (e.g. [R] Version A on desk)
+                for _, prompt in ipairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                        if fireproximityprompt then
+                            fireproximityprompt(prompt)
+                        else
+                            prompt:InputHoldBegin()
+                            task.wait(prompt.HoldDuration or 0.1)
+                            prompt:InputHoldEnd()
+                        end
+                    end
+                end
 
-                            if lowerName == "option_a" or lowerName == "option1" or text == "a" or lowerName == "correct" then
-                                element.MouseButton1Click:Fire()
+                -- 2. Auto Click Answer Bubbles in PlayerGui or SurfaceGuis
+                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if pGui then
+                    for _, btn in ipairs(pGui:GetDescendants()) do
+                        if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and btn.Visible then
+                            local bText = string.lower(btn:IsA("TextButton") and btn.Text or "")
+                            local bName = string.lower(btn.Name)
+
+                            if bText == "a" or bName == "a" or string.find(bName, "option_a") or string.find(bName, "bubble_a") or string.find(bName, "choice1") or string.find(bName, "btn_a") then
+                                if firesignal then
+                                    firesignal(btn.MouseButton1Click)
+                                    firesignal(btn.Activated)
+                                else
+                                    btn.MouseButton1Click:Fire()
+                                end
+                            end
+                        end
+                    end
+                end
+
+                -- 3. Auto Click Desk 3D Surface/ClickDetectors
+                for _, cd in ipairs(workspace:GetDescendants()) do
+                    if cd:IsA("ClickDetector") and cd.Parent then
+                        local pName = string.lower(cd.Parent.Name)
+                        if string.find(pName, "answer") or string.find(pName, "bubble") or string.find(pName, "paper") or string.find(pName, "sheet") then
+                            if fireclickdetector then
+                                fireclickdetector(cd)
                             end
                         end
                     end
@@ -426,20 +486,34 @@ local function UpdateAutoAnswer(enabled)
 end
 
 -- ===================================================================
--- 4. Auto Reduce Anxiety Loop
+-- 4. Auto Reduce Anxiety (Equip Pencil & Auto Focus)
 -- ===================================================================
 local function UpdateReduceAnxiety(enabled)
     if not enabled then return end
 
     task.spawn(function()
         while Features["Auto Reduce Anxiety"] do
-            task.wait(0.5)
+            task.wait(0.3)
             pcall(function()
                 local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    local tool = char:FindFirstChildOfClass("Tool")
-                    if tool and string.find(string.lower(tool.Name), "pencil") then
-                        tool:Activate()
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
+
+                if char and char:FindFirstChildOfClass("Humanoid") then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+                    local pencil = (backpack and (backpack:FindFirstChild("Pencil") or backpack:FindFirstChild("pencil"))) or (char:FindFirstChild("Pencil") or char:FindFirstChild("pencil"))
+
+                    if pencil then
+                        if pencil.Parent == backpack then
+                            humanoid:EquipTool(pencil)
+                        end
+                        pencil:Activate()
+                    end
+
+                    if VirtualUser then
+                        VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                        task.wait(0.1)
+                        VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
                     end
                 end
             end)
@@ -456,7 +530,7 @@ CreateToggle("Teacher Looking Alert", false, UpdateLookingAlert)
 CreateToggle("Auto Reduce Anxiety", false, UpdateReduceAnxiety)
 
 -- ===================================================================
--- Draggable Main UI (PC & Mobile Support)
+-- Draggable UI (PC & Mobile Support)
 -- ===================================================================
 local dragging = false
 local dragInput, dragStart, startPos
@@ -497,4 +571,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("[MDScripts] Loaded features for Cheating During Testing successfully!")
+print("[MDScripts] Fully Loaded & Initialized for Cheating During Testing!")
