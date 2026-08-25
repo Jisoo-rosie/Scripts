@@ -47,8 +47,8 @@ end
 -- ===================================================================
 local AlertBanner = Instance.new("Frame")
 AlertBanner.Name = "AlertBanner"
-AlertBanner.Size = UDim2.new(0, 240, 0, 38)
-AlertBanner.Position = UDim2.new(0.5, -120, 0, 20)
+AlertBanner.Size = UDim2.new(0, 260, 0, 38)
+AlertBanner.Position = UDim2.new(0.5, -130, 0, 25)
 AlertBanner.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
 AlertBanner.Visible = false
 AlertBanner.Parent = ScreenGui
@@ -427,16 +427,84 @@ local function UpdateLookingAlert(enabled)
 end
 
 -- ===================================================================
--- 3. Auto Answer (Bubbles, Prompts & GUI Solver)
+-- Helper: Click / Fill Answer Sheet Bubble
+-- ===================================================================
+local function ClickBubble(button)
+    pcall(function()
+        if firesignal then
+            firesignal(button.MouseButton1Down)
+            firesignal(button.MouseButton1Click)
+            firesignal(button.Activated)
+        end
+
+        if VirtualInputManager and button.AbsoluteSize.X > 0 then
+            local pos = button.AbsolutePosition
+            local size = button.AbsoluteSize
+            local clickX = pos.X + size.X / 2
+            local clickY = pos.Y + size.Y / 2
+
+            VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, true, game, 1)
+            task.wait(0.02)
+            VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, false, game, 1)
+        end
+
+        if button.MouseButton1Click then
+            button.MouseButton1Click:Fire()
+        end
+    end)
+end
+
+-- ===================================================================
+-- 3. Auto Answer (100% Comprehensive Bubble Solver)
 -- ===================================================================
 local function UpdateAutoAnswer(enabled)
     if not enabled then return end
 
     task.spawn(function()
         while Features["Auto Answer"] do
-            task.wait(0.4)
+            task.wait(0.25)
             pcall(function()
-                -- 1. Auto Trigger ProximityPrompt (e.g. [R] Version A on desk)
+                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if not pGui then return end
+
+                local foundSheet = false
+                for _, g in ipairs(pGui:GetDescendants()) do
+                    if g:IsA("TextLabel") or g:IsA("TextButton") then
+                        if string.find(string.lower(g.Text), "answer sheet") or string.find(string.lower(g.Name), "answersheet") then
+                            foundSheet = true
+                            break
+                        end
+                    end
+                end
+
+                if not foundSheet and VirtualInputManager then
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+                    task.wait(0.3)
+                end
+
+                for _, obj in ipairs(pGui:GetDescendants()) do
+                    if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and obj.Visible then
+                        local btnText = obj:IsA("TextButton") and string.upper(string.gsub(obj.Text, "%s+", "")) or ""
+                        local btnName = string.upper(obj.Name)
+
+                        local isA = (btnText == "A") or (btnName == "A") or string.find(btnName, "OPTIONA") or string.find(btnName, "BUBBLEA") or string.find(btnName, "BUTTONA") or string.find(btnName, "CHOICE1") or string.find(btnName, "ANS1")
+
+                        if isA then
+                            local isFilled = false
+                            if obj.BackgroundColor3 == Color3.fromRGB(0, 0, 0) or obj.BackgroundColor3 == Color3.fromRGB(20, 20, 20) then
+                                isFilled = true
+                            end
+
+                            if not isFilled then
+                                ClickBubble(obj)
+                                task.wait(0.04)
+                            end
+                        end
+                    end
+                end
+
                 for _, prompt in ipairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and prompt.Enabled then
                         if fireproximityprompt then
@@ -445,38 +513,6 @@ local function UpdateAutoAnswer(enabled)
                             prompt:InputHoldBegin()
                             task.wait(prompt.HoldDuration or 0.1)
                             prompt:InputHoldEnd()
-                        end
-                    end
-                end
-
-                -- 2. Auto Click Answer Bubbles in PlayerGui or SurfaceGuis
-                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if pGui then
-                    for _, btn in ipairs(pGui:GetDescendants()) do
-                        if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and btn.Visible then
-                            local bText = string.lower(btn:IsA("TextButton") and btn.Text or "")
-                            local bName = string.lower(btn.Name)
-
-                            if bText == "a" or bName == "a" or string.find(bName, "option_a") or string.find(bName, "bubble_a") or string.find(bName, "choice1") or string.find(bName, "btn_a") then
-                                if firesignal then
-                                    firesignal(btn.MouseButton1Click)
-                                    firesignal(btn.Activated)
-                                else
-                                    btn.MouseButton1Click:Fire()
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- 3. Auto Click Desk 3D Surface/ClickDetectors
-                for _, cd in ipairs(workspace:GetDescendants()) do
-                    if cd:IsA("ClickDetector") and cd.Parent then
-                        local pName = string.lower(cd.Parent.Name)
-                        if string.find(pName, "answer") or string.find(pName, "bubble") or string.find(pName, "paper") or string.find(pName, "sheet") then
-                            if fireclickdetector then
-                                fireclickdetector(cd)
-                            end
                         end
                     end
                 end
